@@ -45,8 +45,19 @@ export default class App extends Component<Props> {
         >
           <NavigatorIOS
             style={{ flex: 1 }}
-            initialRoute={{ component: List, title: "list"  }}
+            initialRoute={{
+              component: List,
+              title: "list"
+            }}
+            // configureScene={route => {
+            //   return Navigator.SceneConfigs.FloatFromRight;
+            // }}
+            // renderScene={(route, navigator) => {
+            //   var Compoent = route.component;
+            //   return <Compoent {...route.params} navigator={navigator} />;
+            // }}
           />
+          {/* <List /> */}
         </Icon.TabBarItem>
         <Icon.TabBarItem
           iconName="ios-recording-outline"
