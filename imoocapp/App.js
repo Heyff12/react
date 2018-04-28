@@ -45,7 +45,7 @@ export default class App extends Component<Props> {
         >
           <NavigatorIOS
             style={{ flex: 1 }}
-            initialRoute={{ component: List, title: "list"  }}
+            initialRoute={{ component: List, title: "列表页面"  }}
           />
         </Icon.TabBarItem>
         <Icon.TabBarItem

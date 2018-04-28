@@ -209,7 +209,7 @@ class List extends Component {
 
   _loadPage(row) {
     this.props.navigator.push({
-      title: "detail",
+      title: "视频详情页",
       component: Detail,
       params: {
         data: row
