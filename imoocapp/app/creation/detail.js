@@ -5,32 +5,58 @@ import {
   View,
   Dimensions,
   ActivityIndicator,
-  TouchableOpacity
+  TouchableOpacity,
+  Image,
+  // ScrollView,
+  ListView,
+  TextInput,
+  Modal,
+  AlertIOS
 } from "react-native";
 import Icon from "react-native-vector-icons/Ionicons"; //图标库
+import Button from "react-native-button"; //按钮
 // import Video from "react-native-video";
 // import VideoModel from "react-native-video";
 // var Video = VideoModel.default;
 var Video = require("react-native-video").default;
 var width = Dimensions.get("window").width;
+import request from "../common/request";
+import config from "../common/config";
+
+var cacheResults = {
+  nextPage: 1,
+  items: [],
+  total: 0
+};
 
 class Detail extends Component {
   constructor(Props) {
     super(Props);
+    var ds = new ListView.DataSource({
+      rowHasChanged: (r1, r2) => r1 !== r2
+    }); //判断是否发生变化
     this.state = {
+      data: Props.route.params.data,
+      dataSource: ds.cloneWithRows([]),
       rate: 1,
       muted: false,
       resizeMode: "contain",
       repeat: false,
-      videoLoaded: false, //视频是否加载好
-      videoProgress: 0.01, //进度条进度
-      videoToal: 0, //总时长
-      currentTime: 0, //当前播放时长
-      playing: false, //是否正在播放
-      paused: false, //是否暂停
-      videoOk: true, //视频是否正常
-      data: Props.route.params.data
-    };
+      videoLoaded: false,
+      videoProgress: 0.01,
+      videoToal: 0,
+      currentTime: 0,
+      playing: false,
+      paused: false,
+      videoOk: true,
+      comments: [],
+      isLoadingTail: false,
+      isRefreshing: false,
+      animationType: "none",
+      modalVisible: false,
+      content: "",
+      isSending: false
+    }; //评论框是否显示 //评论内容 //当前详情页数据 //评论 //视频是否加载好 //进度条进度 //总时长:[] //当前播放时长 //是否正在播放 //是否暂停 //视频是否正常
   }
 
   _onLoadStarat() {
@@ -42,7 +68,7 @@ class Detail extends Component {
   }
 
   _onProgress(data) {
-    console.log("load Progress");
+    // console.log("load Progress");
     // console.log(data);
     var duration = data.playableDuration;
     var currentTime = data.currentTime;
@@ -59,19 +85,24 @@ class Detail extends Component {
       newState.playing = true;
     }
     this.setState(newState);
-    console.log(this.state.videoLoaded);
-    console.log(this.state.playing);
+    // console.log(this.state.videoLoaded);
+    // console.log(this.state.playing);
   }
 
   _onEnd() {
     console.log("end");
-    this.setState({ videoOk: false });
+    this.setState({ playing: false });
   }
 
   _onError(err) {
-    console.log("err");
-    console.log(err);
-    this.setState({ videoProgress: 1, playing: false, paused: true });
+    // console.log("err");
+    // console.log(err);
+    this.setState({
+      videoProgress: 1,
+      playing: false,
+      paused: true,
+      videoOk: false
+    });
   }
 
   _rePlay() {
@@ -94,10 +125,215 @@ class Detail extends Component {
     this.props.navigator.pop();
   }
 
+  componentDidMount() {
+    this._fetchData();
+  }
+
+  // _fetchData() {
+  //   var that = this;
+  //   var url = config.api.base + config.api.comment;
+  //   request
+  //     .get(url, {
+  //       id: 124,
+  //       accessToken: "123a"
+  //     })
+  //     .then(data => {
+  //       if (data && data.success) {
+  //         var comments = data.data;
+  //         if (comments && comments.length > 0) {
+  //           that.setState({
+  //             comments: comments,
+  //             dataSource: that.state.dataSource.cloneWithRows(comments)
+  //           });
+  //         }
+  //       }
+  //     })
+  //     .catch(error => {
+  //       console.log(error);
+  //     });
+  // }
+
+  _fetchData(page) {
+    var that = this;
+    this.setState({ isLoadingTail: true });
+
+    request
+      .get(config.api.base + config.api.comment, {
+        accessToken: "1111",
+        page: page,
+        id: 124
+      })
+      .then(data => {
+        if (data.success) {
+          var items = cacheResults.items.slice();
+          items = items.concat(data.data);
+          cacheResults.nextPage += 1;
+          cacheResults.items = items;
+          cacheResults.total = data.total;
+          setTimeout(() => {
+            that.setState({
+              isLoadingTail: false,
+              dataSource: that.state.dataSource.cloneWithRows(
+                cacheResults.items
+              )
+            });
+          }, 2000);
+        }
+      })
+      .catch(error => {
+        this.setState({ isLoadingTail: false });
+
+        console.error(error);
+      });
+  }
+
+  _hasMore() {
+    return cacheResults.items.length !== cacheResults.total;
+  }
+
+  _fetchMoreData() {
+    if (!this._hasMore() || this.state.isLoadingTail) {
+      return;
+    }
+    var page = cacheResults.nextPage;
+    this._fetchData(page);
+  }
+
+  _renderFooter() {
+    if (!this._hasMore() && cacheResults.total !== 0) {
+      return (
+        <View style={styles.loadingMore}>
+          <Text style={styles.loadingText}>没有更多了</Text>
+        </View>
+      );
+    }
+    if (!this.state.isLoadingTail) {
+      return <View style={styles.loadingMore} />;
+    }
+    return <ActivityIndicator style={styles.loadingMore} />;
+  }
+
+  _renderRow(row) {
+    return (
+      <View key={row._id} style={styles.replyBox}>
+        <Image
+          style={styles.replyAvatar}
+          source={{ uri: row.replyBy.avatar }}
+        />
+        <View style={styles.reply}>
+          <Text style={styles.replyNickname}>{row.replyBy.nickname}</Text>
+          <Text style={styles.replyContent}>{row.content}</Text>
+        </View>
+      </View>
+    );
+  }
+
+  _focus() {
+    this._setModalVisible(true);
+  }
+
+  _setModalVisible(isVisible) {
+    this.setState({
+      modalVisible: isVisible
+    });
+  }
+
+  _blur() {}
+
+  _closeModal() {
+    this._setModalVisible(false);
+  }
+
+  _submit() {
+    var that = this;
+    if (!this.state.content) {
+      return AlertIOS.alert("留言不能为空！");
+    }
+    if (this.state.isSending) {
+      return AlertIOS.alert("正在评论中！");
+    }
+    this.setState(
+      {
+        isSending: true
+      },
+      () => {
+        var body = {
+          accessToken: "abc",
+          creation: "1233",
+          comment: this.state.content
+        };
+        var url = config.api.base + config.api.comment;
+        request.post(url, body).then(data => {
+          if (data && data.success) {
+            var items = cacheResults.items.slice();
+            var content = that.state.content;
+            items = [
+              {
+                content: content,
+                replyBy: {
+                  avatar: "http://dummyimage.com/200x200/c2ea2d",
+                  nickname: "哈哈哈呵呵"
+                }
+              }
+            ].concat(items);
+            cacheResults.items = items;
+            cacheResults.tatal = cacheResults.tatal + 1;
+            that.setState({
+              isSending: false,
+              dataSource: that.state.dataSource.cloneWithRows(
+                cacheResults.items
+              )
+            });
+            that._setModalVisible(false);
+          }
+        }).catch((err=>{
+          console.log(err)
+          that.setState({
+            isSending: false
+          });
+          that._setModalVisible(false);
+          AlertIOS.alert("留言失败，稍后重试！");
+        }));
+      }
+    );
+  }
+
+  _renderHeader() {
+    return (
+      <View style={styles.listHeader}>
+        <View style={styles.infoBox}>
+          <Image
+            style={styles.avatar}
+            source={{ uri: this.state.data.author.avatar }}
+          />
+          <View style={styles.descBox}>
+            <Text style={styles.nickname}>
+              {this.state.data.author.nickname}
+            </Text>
+            <Text style={styles.title}>{this.state.data.title}</Text>
+          </View>
+        </View>
+        <View style={styles.commentBox}>
+          <View style={styles.comment}>
+            <TextInput
+              placeholder="敢不敢评论一个"
+              style={styles.content}
+              multiline={true}
+              onFocus={this._focus.bind(this)}
+            />
+          </View>
+        </View>
+        <View style={styles.commentArea}>
+          <Text style={styles.commentTitle}>精彩评论</Text>
+        </View>
+      </View>
+    );
+  }
+
   render() {
     return (
       <View style={styles.container}>
-        <View style={styles.header}>
+        {/* <View style={styles.header}>
           <TouchableOpacity
             onPress={this._pop.bind(this)}
             style={styles.backBox}
@@ -113,10 +349,10 @@ class Detail extends Component {
           <Text style={styles.headTitle} numberOfflines={1}>
             视频详情页
           </Text>
-        </View>
-        <Text>
+        </View> */}
+        {/* <Text>
           详情页面{this.state.data._id}
-        </Text>
+        </Text> */}
         <View style={styles.videoBox}>
           <Video
             ref="videoPlayer"
@@ -173,6 +409,53 @@ class Detail extends Component {
             />
           </View>
         </View>
+        {/* <ScrollView
+          enableEmptySections={true}
+          automaticallyAdjustContentInsets={false}
+          style={styles.scrollView}
+        > */}
+        <ListView
+          dataSource={this.state.dataSource}
+          renderRow={this._renderRow.bind(this)}
+          renderFooter={this._renderFooter.bind(this)}
+          renderHeader={this._renderHeader.bind(this)}
+          onEndReached={this._fetchMoreData.bind(this)}
+          onEndReachedThreshold={20}
+          enableEmptySections={true}
+          automaticallyAdjustContentInsets={false}
+        />
+        {/* </ScrollView> */}
+        <Modal
+          animationType={"fade"}
+          visible={this.state.modalVisible}
+          onRequestClose={() => {
+            this._setModalVisible(false);
+          }}
+        >
+          <View style={styles.modalContainer}>
+            <Icon
+              onPress={this._closeModal.bind(this)}
+              name="ios-close-outline"
+              size={48}
+              style={styles.closeIcon}
+            />
+            <View style={styles.comment}>
+              <TextInput
+                placeholder="敢不敢评论一个"
+                style={styles.content}
+                multiline={true} // onFocus={this._focus.bind(this)}
+                // onBlur={this._blur.bind(this)}
+                defaultValue={this.state.content}
+                onChangeText={text => {
+                  this.setState({ content: text });
+                }}
+              />
+            </View>
+          </View>
+          <Button style={styles.submitBtn} onPress={this._submit.bind(this)}>
+            评论
+          </Button>
+        </Modal>
       </View>
     );
   }
@@ -218,18 +501,18 @@ const styles = StyleSheet.create({
   },
   videoBox: {
     width: width,
-    height: 360,
+    height: width * 0.56,
     backgroundColor: "#000"
   },
   video: {
     width: width,
-    height: 360,
+    height: width * 0.56,
     backgroundColor: "#000"
   },
   loading: {
     position: "absolute",
     left: 0,
-    top: 140,
+    top: 80,
     width: width,
     alignSelf: "center",
     backgroundColor: "transparent"
@@ -246,7 +529,7 @@ const styles = StyleSheet.create({
   },
   playIcon: {
     position: "absolute",
-    top: 150,
+    top: 110,
     left: width / 2 - 30,
     width: 60,
     height: 60,
@@ -269,7 +552,7 @@ const styles = StyleSheet.create({
   },
   resumeIcon: {
     position: "absolute",
-    top: 150,
+    top: 110,
     left: width / 2 - 30,
     width: 60,
     height: 60,
@@ -284,11 +567,114 @@ const styles = StyleSheet.create({
   failText: {
     position: "absolute",
     left: 0,
-    top: 140,
+    top: 90,
     width: width,
-    alignSelf: "center",
+    textAlign: "center",
     color: "#fff",
     backgroundColor: "transparent"
+  },
+  infoBox: {
+    width: width,
+    flexDirection: "row",
+    justifyContent: "center",
+    marginTop: 10
+  },
+  avatar: {
+    width: 60,
+    height: 60,
+    marginRight: 10,
+    marginLeft: 10,
+    borderRadius: 30
+  },
+  descBox: {
+    flex: 1
+  },
+  nickname: {
+    fontSize: 18
+  },
+  title: {
+    fontSize: 16,
+    marginTop: 8,
+    color: "#666"
+  },
+  replyBox: {
+    flexDirection: "row",
+    justifyContent: "flex-start",
+    marginTop: 10
+  },
+  replyAvatar: {
+    width: 40,
+    height: 40,
+    marginRight: 10,
+    marginLeft: 10,
+    borderRadius: 20
+  },
+  replyNickname: {
+    color: "#666"
+  },
+  replyContent: {
+    marginTop: 4,
+    color: "#666"
+  },
+  reply: {
+    flex: 1
+  },
+  loadingMore: {
+    marginVertical: 20
+  },
+  loadingText: {
+    color: "#777",
+    textAlign: "center"
+  },
+  commentBox: {
+    marginTop: 10,
+    marginBottom: 10,
+    padding: 8,
+    width: width
+  },
+  comment: {
+    paddingLeft: 2,
+    // color: "#333",
+    borderWidth: 1,
+    borderColor: "#ddd",
+    borderRadius: 4,
+    // fontSize: 14,
+    height: 80
+  },
+  listHeader: {
+    marginTop: 10,
+    width: width
+  },
+  commentArea: {
+    width: width,
+    paddingBottom: 6,
+    paddingLeft: 10,
+    paddingRight: 10,
+    borderBottomWidth: 1,
+    borderBottomColor: "#eee"
+  },
+  commentTitle: {},
+  modalContainer: {
+    flex: 1,
+    paddingTop: 45,
+    backgroundColor: "#fff"
+  },
+  closeIcon: {
+    alignSelf: "center",
+    fontSize: 30,
+    color: "#ee753c"
+  },
+  submitBtn: {
+    width: width - 20,
+    padding: 16,
+    marginTop: 20,
+    marginLeft:10,
+    marginBottom: 20,
+    borderWidth: 1,
+    borderColor: "#ee735c",
+    borderRadius: 4,
+    color: "#ee735c",
+    fontSize: 16
   }
 });
 
