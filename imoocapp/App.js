@@ -25,7 +25,7 @@ type Props = {};
 export default class App extends Component<Props> {
   constructor(Props) {
     super(Props);
-    this.state = { selectedTab: "list", notifCount: 0, presses: 0 };
+    this.state = { selectedTab: "account", notifCount: 0, presses: 0 };
   }
 
   // getInitialState() {
