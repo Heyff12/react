@@ -10,6 +10,8 @@ module.exports = {
     base: "http://rapapi.org/mockjs/33727/",
     creations: "api/creations",
     up: "api/up",
-    comment: "api/comment"
+    comment: "api/comment",
+    signup: "api/u/signup",
+    verify: "api/u/verify"
   }
 };

@@ -9,7 +9,8 @@ import Icon from "react-native-vector-icons/Ionicons"; //图标库
 
 var List = require("./app/creation/index");
 var Edit = require("./app/edit/index");
-var Account = require("./app/account/index");
+// var Account = require("./app/account/index");
+var Account = require("./app/account/login");
 
 import {
   Platform,
