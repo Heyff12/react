@@ -7,10 +7,15 @@
 import React, { Component } from "react";
 import Icon from "react-native-vector-icons/Ionicons"; //图标库
 
-var List = require("./app/creation/index");
-var Edit = require("./app/edit/index");
+// var List = require("./app/creation/index");
+// var Edit = require("./app/edit/index");
 // var Account = require("./app/account/index");
-var Account = require("./app/account/login");
+// var Login = require("./app/account/login");
+
+import List from "./app/creation/index";
+import Edit from "./app/edit/index";
+import Account from "./app/account/index";
+import Login from "./app/account/login";
 
 import {
   Platform,
@@ -18,22 +23,63 @@ import {
   TabBarIOS,
   Text,
   View,
+  AsyncStorage,
   NavigatorIOS //取消使用
 } from "react-native";
 
-type Props = {};
+var Props = {};
 
 export default class App extends Component<Props> {
   constructor(Props) {
     super(Props);
-    this.state = { selectedTab: "account", notifCount: 0, presses: 0 };
+    this.state = {
+      selectedTab: "account",
+      notifCount: 0,
+      presses: 0,
+      logined: false,
+      user: null
+    };
+  }
+
+  componentDidMount() {
+    this._asyncAppStatus(); //获取数据
+  }
+
+  _asyncAppStatus() {
+    AsyncStorage.getItem("user").then(data => {
+      var user;
+      var newState = {};
+      if (data) {
+        user = JSON.parse(data);
+      }
+      if (user && user.accessToken) {
+        newState.user = user;
+        newState.logined = true;
+      } else {
+        newState.logined = false;
+      }
+      this.setState(newState);
+    });
   }
 
   // getInitialState() {
   //   return { selectedTab: "redTab", notifCount: 0, presses: 0 };
   // }
 
+  _afterLogin(user) {
+    user = JSON.stringify(user);
+    AsyncStorage.setItem("user", user).then(() => {
+      this.setState({
+        logined: true,
+        user: user
+      });
+    });
+  }
+
   render() {
+    if (!this.state.logined) {
+      return <Login afterLogin={this._afterLogin.bind(this)} />;
+    }
     return (
       <TabBarIOS tintColor="#ee735c">
         <Icon.TabBarItem
@@ -41,12 +87,14 @@ export default class App extends Component<Props> {
           selectedIconName="ios-videocam"
           selected={this.state.selectedTab === "list"}
           onPress={() => {
-            this.setState({ selectedTab: "list" });
+            this.setState({
+              selectedTab: "list"
+            });
           }}
         >
           <NavigatorIOS
             style={{ flex: 1 }}
-            initialRoute={{ component: List, title: "列表页面"  }}
+            initialRoute={{ component: List, title: "列表页面" }}
           />
         </Icon.TabBarItem>
         <Icon.TabBarItem
@@ -54,7 +102,9 @@ export default class App extends Component<Props> {
           selectedIconName="ios-recording"
           selected={this.state.selectedTab === "edit"}
           onPress={() => {
-            this.setState({ selectedTab: "edit" });
+            this.setState({
+              selectedTab: "edit"
+            });
           }}
         >
           <Edit />
@@ -64,7 +114,9 @@ export default class App extends Component<Props> {
           selectedIconName="ios-more"
           selected={this.state.selectedTab === "account"}
           onPress={() => {
-            this.setState({ selectedTab: "account" });
+            this.setState({
+              selectedTab: "account"
+            });
           }}
         >
           <Account />

@@ -18,6 +18,9 @@
     "babel-jest": "22.4.3",
     "babel-preset-react-native": "4.0.0",
     "jest": "22.4.3",
+    "react-addons-update": "^15.6.2",
+    "react-native-image-picker": "^0.26.7",
+    "react-native-sk-countdown": "^1.0.1",
     "react-native-vector-icons": "^4.6.0",
     "react-native-video": "^2.0.0",
     "react-test-renderer": "16.3.1"

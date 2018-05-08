@@ -1,79 +1,116 @@
 import React, { Component } from "react";
-import { StyleSheet, Text, View, AsyncStorage } from "react-native";
+import {
+  StyleSheet,
+  Text,
+  View,
+  AsyncStorage,
+  TouchableOpacity,
+  Dimensions,
+  Image
+} from "react-native";
 import Icon from "react-native-vector-icons/Ionicons"; //图标库
+var width = Dimensions.get("window").width;
+// var ImagePicker = require("NativeModules").ImagePickerManager;
+// import { ImagePickerManager } from "NativeModules";
+// import ImagePicker from "NativeModules";
+// var ImagePicker = require("react-native-image-picker");
+import ImagePicker from "react-native-image-picker";
+// import { showImagePicker } from "react-native-image-picker";
+
+var photoOptions = {
+  title: "选择头像",
+  cancelButtonTitle: "取消",
+  takePhotoButtonTitle: "拍照",
+  chooseFromLibraryButtonTitle: "选择相册",
+  quality: "0.75",
+  allowsEditing: true,
+  noData: false,
+  // storageOptions.skipBackup:false,
+  storageOptions: {
+    skipBackup: true,
+    path: "images"
+  }
+};
 
 class Account extends Component {
   constructor(props) {
     super(props);
-    var row = this.props.row;
-    this.state = { user: { nickname: "小四", times: 0 } };
+    var user = this.props.user || {};
+    this.state = { user: user };
   }
 
   componentDidMount() {
-    var that = this;
-    AsyncStorage.getItem("user")
-      .then(data => {
-        console.log(data);
-        if (data) {
-          data = JSON.parse(data);
-        } else {
-          data = that.state.user;
-        }
-        // data = JSON.parse(data);
-        that.setState(
-          {
-            user: data
-          },
-          () => {
-            data.times++;
-            var userData = JSON.stringify(data);
-            AsyncStorage.setItem("user", userData)
-              .then(() => {
-                console.log("save ok");
-              })
-              .catch(err => {
-                console.log("save fail");
-                console.log(err);
-              });
-          }
-        );
-      })
-      .catch(err => {
-        console.log("get fail");
-        console.log(err);
-        // var user = that.state.user;
-        // user.times++;
-        // var userData = JSON.stringify(user);
-        // AsyncStorage.setItem("user", userData)
-        //   .then(() => {
-        //     console.log("save ok");
-        //   })
-        //   .catch(err => {
-        //     console.log("save fail");
-        //     console.log(err);
-        //   });
-      });
+    AsyncStorage.getItem("user").then(data => {
+      var user;
+      console.log(data);
+      if (data) {
+        user = JSON.parse(data);
+      }
+      if (user && user.accessToken) {
+        this.setState({
+          user: user
+        });
+      }
+    });
+  }
 
-    // AsyncStorage.removeItem('user')
-    // .then(()=>{
-    //   console.log('remove ok')
-    // })
+  _pickPhoto() {
+    console.log(ImagePicker);
+    ImagePicker.showImagePicker(photoOptions, res => {
+      console.log("Response = ", res);
+      if (res.didCancel) {
+        console.log("User cancelled image picker");
+        return;
+      }
+      var avatarData = "data:image/jpeg;base64," + res.data;
+      var user = this.state.user;
+      user.avatar = avatarData;
+      this.setState({ user: user });
+
+      // if (res.didCancel) {
+      //   console.log("User cancelled image picker");
+      // } else if (res.error) {
+      //   console.log("ImagePicker Error: ", res.error);
+      // } else if (res.customButton) {
+      //   console.log("User tapped custom button: ", res.customButton);
+      // } else {
+      //   let source = { uri: res.uri };
+
+      //   // You can also display the image using data:
+      //   // let source = { uri: 'data:image/jpeg;base64,' + res.data };
+
+      //   this.setState({ avatarSource: source });
+      // }
+    });
   }
 
   render() {
+    var user = this.state.user;
     return (
       <View style={styles.container}>
-        <Text style={[styles.item, styles.item1]}>老大，开心吗</Text>
-        <View style={[styles.item, styles.item2]}>
-          <Text>老二，哈哈哈哈</Text>
+        <View style={styles.toolbar}>
+          <Text style={styles.toolbarTitle}>我的账户</Text>
         </View>
-        <View style={[styles.item, styles.item3]}>
-          <Text>老三，呵呵呵呵呵aaaa</Text>
-        </View>
-        <Text style={[styles.item, styles.item4]}>
-          {this.state.user.nickname}笑了{this.state.user.times}
-          次
-        </Text>
+        {user.avatar ? (
+          <TouchableOpacity
+            onPress={this._pickPhoto.bind(this)}
+            style={styles.avatarContainer}
+          >
+            {/* <Image style={styles.avatarContainer}> */}
+            <View style={styles.avatarBox}>
+              <Image source={{ uri: user.avatar }} style={styles.avatar} />
+            </View>
+            <Text style={styles.avatarTip}>修改头像</Text>
+            {/* </Image> */}
+          </TouchableOpacity>
+        ) : (
+          <View style={styles.avatarContainer}>
+            <Text style={styles.avatarTip}>添加狗狗头像</Text>
+            <TouchableOpacity style={styles.avatarBox}>
+              <Icon name="ios-cloud-upload-outline" style={styles.plusIcon} />
+            </TouchableOpacity>
+          </View>
+        )}
       </View>
     );
   }
@@ -81,37 +118,60 @@ class Account extends Component {
 
 const styles = StyleSheet.create({
   container: {
-    flex: 1,
-    // justifyContent: "center",
-    // alignItems: "center",
-    // backgroundColor: "#F5FCFF"
-    paddingTop: 30,
-    paddingBottom: 80,
-    backgroundColor: "orange",
+    flex: 1
+  },
+  toolbar: {
     flexDirection: "row",
-    flexWrap: "nowrap",
-    justifyContent: "space-between",
-    alignItems: "center"
+    paddingTop: 25,
+    paddingBottom: 12,
+    backgroundColor: "#ee735c"
   },
-  item1: {
+  toolbarTitle: {
     flex: 1,
-    backgroundColor: "#ccc"
-    // alignSelf: "flex-start"
+    fontSize: 16,
+    color: "#fff",
+    textAlign: "center",
+    fontWeight: "600"
   },
-  item2: {
-    flex: 2,
-    backgroundColor: "#999"
-    // alignSelf: "stretch"
+  avatarContainer: {
+    width: width,
+    height: 140,
+    alignItems: "center",
+    justifyContent: "center",
+    backgroundColor: "#eee"
   },
-  item3: {
-    flex: 1,
-    backgroundColor: "#666"
-    // alignSelf: "flex-end"
+  // avatarContainerHas: {
+  //   width: width,
+  //   height: 140,
+  //   alignItems: "center",
+  //   justifyContent: "center",
+  //   backgroundColor: "#eee"
+  // },
+  avatarTip: {
+    color: "#666",
+    backgroundColor: "transparent",
+    fontSize: 14
   },
-  item4: {
-    flex: 3,
-    backgroundColor: "#666"
-    // alignSelf: "flex-end"
+  avatar: {
+    marginBottom: 15,
+    width: width * 0.2,
+    height: width * 0.2,
+    resizeMode: "cover",
+    borderRadius: width * 0.1
+  },
+  avatarBox: {
+    marginTop: 15,
+    alignItems: "center",
+    justifyContent: "center"
+  },
+  plusIcon: {
+    padding: 20,
+    paddingLeft: 25,
+    paddingRight: 25,
+    color: "#666",
+    fontSize: 30,
+    backgroundColor: "#fff",
+    borderRadius: 6
   }
 });
 

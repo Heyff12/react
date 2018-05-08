@@ -11,17 +11,48 @@ import {
 import Icon from "react-native-vector-icons/Ionicons"; //图标库
 import request from "../common/request";
 import config from "../common/config";
+// import { CountDownText } from "react-native-sk-countdown";
+// import CountDownText from "react-native-sk-countdown";
 
 class Login extends Component {
   constructor(props) {
     super(props);
     var row = this.props.row;
-    this.state = { phoneNumber: "", codeSent: false, verifyCode:'' };
+    this.state = {
+      phoneNumber: "",
+      codeSent: false,
+      verifyCode: "",
+      countingDone: false
+    };
   }
 
   componentDidMount() {}
 
-  _submit() {}
+  _submit() {
+    var phoneNumber = this.state.phoneNumber;
+    var verifyCode = this.state.verifyCode;
+    if (!phoneNumber || !verifyCode) {
+      return AlertIOS.alert("手机号或验证码不能为空！");
+    }
+    var body = { phoneNumber: phoneNumber, verifyCode: verifyCode };
+    var verifyUrl = config.api.base + config.api.verify;
+    request
+      .post(verifyUrl, body)
+      .then(data => {
+        if (data.success && data) {
+          console.log("signin ok");
+          console.log(data);
+          this.props.afterLogin(data.data);
+          // this._showVerifyCode();
+        } else {
+          AlertIOS.alert("登陆失败，请检查手机号或者验证码是否正确");
+        }
+      })
+      .catch(err => {
+        console.log(err);
+        AlertIOS.alert("登陆失败，请检查网络是否良好");
+      });
+  }
 
   _showVerifyCode() {
     this.setState({
@@ -53,6 +84,11 @@ class Login extends Component {
       });
   }
 
+  //倒计时结束
+  _countdingDone() {
+    this.setState({ countingDone: true });
+  }
+
   render() {
     return (
       <View style={styles.container}>
@@ -62,7 +98,7 @@ class Login extends Component {
             placeholder="输入手机号"
             autoCaptialize={"none"}
             autoCorrect={false}
-            keyboradType={"number-pad"}
+            keyboardType={"number-pad"}
             style={styles.inputField}
             onChangeText={text => {
               this.setState({ phoneNumber: text });
@@ -80,6 +116,36 @@ class Login extends Component {
                   this.setState({ verifyCode: text });
                 }}
               />
+              {/* {this.state.countingDone ? (
+                <Button
+                  title="获取验证码"
+                  style={styles.countBtn}
+                  onPress={this._sendVerifyCode.bind(this)}
+                />
+              ) : (
+                <CountDownText
+                  style={styles.countBtn}
+                  countType="seconds"
+                  auto={
+                    true // 计时类型：seconds / date
+                  }
+                  afterEnd={
+                    this._countdingDone.bind(this) // 自动开始
+                  }
+                  timeLeft={
+                    60 // 结束回调
+                  }
+                  step={
+                    -1 // 正向计时 时间起点为0秒
+                  }
+                  startText="获取验证码"
+                  endText="获取验证码"
+                  intervalText={
+                    sec => "剩余秒数:" + sec // 计时步长，以秒为单位，正数则为正计时，负数为倒计时 // 开始的文本 // 结束的文本
+                  }
+                />
+              ) // 定时的文本回调
+              } */}
             </View>
           ) : null}
           {this.state.codeSent ? (
@@ -98,17 +164,6 @@ class Login extends Component {
             />
           )}
         </View>
-        {/* <Text style={[styles.item, styles.item1]}>老大，开心吗</Text>
-        <View style={[styles.item, styles.item2]}>
-          <Text>老二，哈哈哈哈</Text>
-        </View>
-        <View style={[styles.item, styles.item3]}>
-          <Text>老三，呵呵呵呵呵aaaa</Text>
-        </View>
-        <Text style={[styles.item, styles.item4]}>
-          {this.state.user.nickname}笑了{this.state.user.times}
-          次
-        </Text> */}
       </View>
     );
   }
@@ -129,6 +184,24 @@ const styles = StyleSheet.create({
     fontSize: 20,
     textAlign: "center"
   },
+  verifyCodeBox: {
+    marginTop: 10,
+    flexDirection: "row",
+    justifyContent: "space-between"
+  },
+  countBtn: {
+    width: 110,
+    height: 40,
+    padding: 10,
+    marginLeft: 8,
+    color: "#fff",
+    backgroundColor: "#ee735c",
+    borderColor: "#ee735c",
+    fontSize: 15,
+    textAlign: "left",
+    borderRadius: 2,
+    fontWeight: "600"
+  },
   inputField: {
     // flex: 1,
     height: 40,
@@ -141,7 +214,7 @@ const styles = StyleSheet.create({
   btn: {
     marginTop: 10,
     padding: 10,
-    // backgroundColor: "transparent",
+    backgroundColor: "transparent",
     borderColor: "#ee735c",
     borderWidth: 1,
     borderRadius: 4
