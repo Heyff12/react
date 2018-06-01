@@ -1,4 +1,7 @@
 import React, { Component } from "react";
+import request from "../common/request";
+import config from "../common/config";
+import sha1 from 'sha1';
 import {
   StyleSheet,
   Text,
@@ -6,7 +9,8 @@ import {
   AsyncStorage,
   TouchableOpacity,
   Dimensions,
-  Image
+  Image,
+  AlertIOS
 } from "react-native";
 import Icon from "react-native-vector-icons/Ionicons"; //图标库
 var width = Dimensions.get("window").width;
@@ -32,6 +36,20 @@ var photoOptions = {
   }
 };
 
+var CLOUDINARY = {
+  cloud_name: "daq8ot1mc",
+  api_key: "878444634363697",
+  api_secret: "Ylqh74p3HE2dsq5KcVlASt8sd_U",
+  base: "http://res.cloudinary.com/daq8ot1mc",
+  image: "https://api.cloudinary.com/v1_1/daq8ot1mc/image/upload",
+  video: "https://api.cloudinary.com/v1_1/daq8ot1mc/video/upload",
+  audio: "https://api.cloudinary.com/v1_1/daq8ot1mc/raw/upload"
+};
+
+function avatar(id){
+  return CLOUDINARY.base+'/'+type+'/upload/'+id
+}
+
 class Account extends Component {
   constructor(props) {
     super(props);
@@ -46,6 +64,8 @@ class Account extends Component {
       if (data) {
         user = JSON.parse(data);
       }
+      // user.avatar = '';
+      // AsyncStorage.setItem("user",JSON.stringify(user));
       if (user && user.accessToken) {
         this.setState({
           user: user
@@ -54,7 +74,7 @@ class Account extends Component {
     });
   }
 
-  _pickPhoto() {
+  _pickPhoto() {    
     console.log(ImagePicker);
     ImagePicker.showImagePicker(photoOptions, res => {
       console.log("Response = ", res);
@@ -66,6 +86,44 @@ class Account extends Component {
       var user = this.state.user;
       user.avatar = avatarData;
       this.setState({ user: user });
+
+      var timestamp = Date.now();
+      var tags = "app,avatar";
+      var folder = "avatar";
+      var signatureURL = config.api.base + config.api.signature;
+      var accessToken = this.state.user.accessToken;
+      request
+        .post(signatureURL, {
+          accessToken: accessToken,
+          timestamp: timestamp,
+          type: "avatar"
+        })
+        .catch((err)=>{
+          console.log(err)
+        })
+        .then(data => {
+          console.log(data);
+          if (data && data.success) {
+            var signature =
+              "folder=" +
+              folder +
+              "&tags=" +
+              tags +
+              "&timestamp=" +
+              timestamp +
+              CLOUDINARY.api_secret;
+            signature = sha1(signature);
+            var body = new FormData();
+            body.append("folder", folder);
+            body.append("signature", signature);
+            body.append("timestamp", timestamp);
+            body.append("tags", tags);
+            body.append("api_key", CLOUDINARY.api_key);
+            body.append("resource_type", "image");
+            body.append("file", avatarData);
+            this._upload(body);
+          }
+        });
 
       // if (res.didCancel) {
       //   console.log("User cancelled image picker");
@@ -84,6 +142,42 @@ class Account extends Component {
     });
   }
 
+  _upload(body){
+    var xhr = new XMLHttpRequest();
+    var url = CLOUDINARY.image;
+
+    xhr.open('POST',url)
+    xhr.onload=()=>{
+      if(xhr.status !== 200){
+        AlertIOS.alert("请求失败");
+        console.log(xhr.responseText)
+        return
+      }
+      if(!xhr.responseText){
+        AlertIOS.alert("请求失败");
+        return;
+      }
+      var response;
+      try {
+        response = JSON.parse(xhr.response)
+      }catch(e){
+        console.log(e);
+        console.log('parse fails')
+      }
+
+      if(response && response.public_id){
+        var user = this.state.user
+        user.avatar = avatar(response.public_id,'image');
+
+        this.setState({
+          user:user
+        })
+
+      }
+    }
+    xhr.send(body)
+  }
+
   render() {
     var user = this.state.user;
     return (
@@ -96,7 +190,7 @@ class Account extends Component {
             onPress={this._pickPhoto.bind(this)}
             style={styles.avatarContainer}
           >
-            {/* <Image style={styles.avatarContainer}> */}
+            {/* <Image style={styles.avatarBpc}> */}
             <View style={styles.avatarBox}>
               <Image source={{ uri: user.avatar }} style={styles.avatar} />
             </View>
@@ -106,7 +200,10 @@ class Account extends Component {
         ) : (
           <View style={styles.avatarContainer}>
             <Text style={styles.avatarTip}>添加狗狗头像</Text>
-            <TouchableOpacity style={styles.avatarBox}>
+            <TouchableOpacity
+              style={styles.avatarBox}
+              onPress={this._pickPhoto.bind(this)}
+            >
               <Icon name="ios-cloud-upload-outline" style={styles.plusIcon} />
             </TouchableOpacity>
           </View>
